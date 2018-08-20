@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <link href="assets/style.css" rel="stylesheet" type="text/css"/></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function find_all(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sort_column(elem) {
+    toggle_sort_states(elem);
+    var colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    var key;
+    if (elem.classList.contains('numeric')) {
+        key = key_num;
+    } else if (elem.classList.contains('result')) {
+        key = key_result;
+    } else {
+        key = key_alpha;
+    }
+    sort_table(elem, key(colIndex));
+}
+
+function show_all_extras() {
+    find_all('.col-result').forEach(show_extras);
+}
+
+function hide_all_extras() {
+    find_all('.col-result').forEach(hide_extras);
+}
+
+function show_extras(colresult_elem) {
+    var extras = colresult_elem.parentNode.nextElementSibling;
+    var expandcollapse = colresult_elem.firstElementChild;
+    extras.classList.remove("collapsed");
+    expandcollapse.classList.remove("expander");
+    expandcollapse.classList.add("collapser");
+}
+
+function hide_extras(colresult_elem) {
+    var extras = colresult_elem.parentNode.nextElementSibling;
+    var expandcollapse = colresult_elem.firstElementChild;
+    extras.classList.add("collapsed");
+    expandcollapse.classList.remove("collapser");
+    expandcollapse.classList.add("expander");
+}
+
+function show_filters() {
+    var filter_items = document.getElementsByClassName('filter');
+    for (var i = 0; i < filter_items.length; i++)
+        filter_items[i].hidden = false;
+}
+
+function add_collapse() {
+    // Add links for show/hide all
+    var resulttable = find('table#results-table');
+    var showhideall = document.createElement("p");
+    showhideall.innerHTML = '<a href="javascript:show_all_extras()">Show all details</a> / ' +
+                            '<a href="javascript:hide_all_extras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    find_all('.col-result').forEach(function(elem) {
+        var extras = elem.parentNode.nextElementSibling;
+        var expandcollapse = document.createElement("span");
+        if (elem.innerHTML === 'Passed') {
+            extras.classList.add("collapsed");
+            expandcollapse.classList.add("expander");
+        } else {
+            expandcollapse.classList.add("collapser");
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener("click", function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains("collapsed")) {
+                show_extras(event.currentTarget);
+            } else {
+                hide_extras(event.currentTarget);
+            }
+        });
+    })
+}
+
+function init () {
+    reset_sort_headers();
+
+    add_collapse();
+
+    show_filters();
+
+    toggle_sort_states(find('.initial-sort'));
+
+    find_all('.sortable').forEach(function(elem) {
+        elem.addEventListener("click",
+                              function(event) {
+                                  sort_column(elem);
+                              }, false)
+    });
+
+};
+
+function sort_table(clicked, key_func) {
+    var rows = find_all('.results-table-row');
+    var reversed = !clicked.classList.contains('asc');
+    var sorted_rows = sort(rows, key_func, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    var thead = document.getElementById("results-table-head");
+    document.getElementById('results-table').remove();
+    var parent = document.createElement("table");
+    parent.id = "results-table";
+    parent.appendChild(thead);
+    sorted_rows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName("BODY")[0].appendChild(parent);
+}
+
+function sort(items, key_func, reversed) {
+    var sort_array = items.map(function(item, i) {
+        return [key_func(item), i];
+    });
+    var multiplier = reversed ? -1 : 1;
+
+    sort_array.sort(function(a, b) {
+        var key_a = a[0];
+        var key_b = b[0];
+        return multiplier * (key_a >= key_b ? 1 : -1);
+    });
+
+    return sort_array.map(function(item) {
+        var index = item[1];
+        return items[index];
+    });
+}
+
+function key_alpha(col_index) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[col_index].firstChild.data.toLowerCase();
+    };
+}
+
+function key_num(col_index) {
+    return function(elem) {
+        return parseFloat(elem.childNodes[1].childNodes[col_index].firstChild.data);
+    };
+}
+
+function key_result(col_index) {
+    return function(elem) {
+        var strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+                       'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[col_index].firstChild.data);
+    };
+}
+
+function reset_sort_headers() {
+    find_all('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    find_all('.sortable').forEach(function(elem) {
+        var icon = document.createElement("div");
+        icon.className = "sort-icon";
+        icon.textContent = "vvv";
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove("desc", "active");
+        elem.classList.add("asc", "inactive");
+    });
+}
+
+function toggle_sort_states(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        reset_sort_headers();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function is_all_rows_hidden(value) {
+  return value.hidden == false;
+}
+
+function filter_table(elem) {
+    var outcome_att = "data-test-result";
+    var outcome = elem.getAttribute(outcome_att);
+    class_outcome = outcome + " results-table-row";
+    var outcome_rows = document.getElementsByClassName(class_outcome);
+
+    for(var i = 0; i < outcome_rows.length; i++){
+        outcome_rows[i].hidden = !elem.checked;
+    }
+
+    var rows = find_all('.results-table-row').filter(is_all_rows_hidden);
+    var all_rows_hidden = rows.length == 0 ? true : false;
+    var not_found_message = document.getElementById("not-found-message");
+    not_found_message.hidden = !all_rows_hidden;
+}
+</script>
+    <p>Report generated on 19-Apr-2018 at 15:07:59 by<a href="https://pypi.python.org/pypi/pytest-html"> pytest-html</a> v1.14.2</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>JAVA_HOME</td>
+        <td>D:\MyEnv\Java\jdk1.8.0_102</td></tr>
+      <tr>
+        <td>Packages</td>
+        <td>{&apos;pytest&apos;: &apos;3.2.1&apos;, &apos;py&apos;: &apos;1.4.34&apos;, &apos;pluggy&apos;: &apos;0.4.0&apos;}</td></tr>
+      <tr>
+        <td>Platform</td>
+        <td>Windows-10-10.0.16299-SP0</td></tr>
+      <tr>
+        <td>Plugins</td>
+        <td>{&apos;variables&apos;: &apos;1.7.0&apos;, &apos;timeout&apos;: &apos;1.2.0&apos;, &apos;selenium&apos;: &apos;1.9.1&apos;, &apos;metadata&apos;: &apos;1.5.0&apos;, &apos;html&apos;: &apos;1.14.2&apos;, &apos;base-url&apos;: &apos;1.4.1&apos;}</td></tr>
+      <tr>
+        <td>Python</td>
+        <td>3.6.1</td></tr></table>
+    <h2>Summary</h2>
+    <p>0 tests ran in 5.01 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="passed">0 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="failed">0 failed</span>, <input checked="true" class="filter" data-test-result="error" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="error">1 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable numeric" col="duration">Duration</th>
+          <th>Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="error results-table-row">
+        <tr>
+          <td class="col-result">Error</td>
+          <td class="col-name">test_model.py::test_term_plan_detail::setup</td>
+          <td class="col-duration">4.02</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">self = &lt;urllib.request.HTTPHandler object at 0x0000020820DE8438&gt;<br/>http_class = &lt;class &#x27;http.client.HTTPConnection&#x27;&gt;<br/>req = &lt;selenium.webdriver.remote.remote_connection.Request object at 0x0000020820DE82E8&gt;<br/>http_conn_args = {}, host = &#x27;localhost:4723&#x27;<br/>h = &lt;http.client.HTTPConnection object at 0x0000020820DD0CC0&gt;<br/><br/>    def do_open(self, http_class, req, **http_conn_args):<br/>        &quot;&quot;&quot;Return an HTTPResponse object for the request, using http_class.<br/>    <br/>            http_class must implement the HTTPConnection API from http.client.<br/>            &quot;&quot;&quot;<br/>        host = req.host<br/>        if not host:<br/>            raise URLError(&#x27;no host given&#x27;)<br/>    <br/>        # will parse host:port<br/>        h = http_class(host, timeout=req.timeout, **http_conn_args)<br/>        h.set_debuglevel(self._debuglevel)<br/>    <br/>        headers = dict(req.unredirected_hdrs)<br/>        headers.update(dict((k, v) for k, v in req.headers.items()<br/>                            if k not in headers))<br/>    <br/>        # TODO(jhylton): Should this be redesigned to handle<br/>        # persistent connections?<br/>    <br/>        # We want to make an HTTP/1.1 request, but the addinfourl<br/>        # class isn&#x27;t prepared to deal with a persistent connection.<br/>        # It will try to read all remaining data from the socket,<br/>        # which will block while the server waits for the next request.<br/>        # So make sure the connection gets closed after the (only)<br/>        # request.<br/>        headers[&quot;Connection&quot;] = &quot;close&quot;<br/>        headers = dict((name.title(), val) for name, val in headers.items())<br/>    <br/>        if req._tunnel_host:<br/>            tunnel_headers = {}<br/>            proxy_auth_hdr = &quot;Proxy-Authorization&quot;<br/>            if proxy_auth_hdr in headers:<br/>                tunnel_headers[proxy_auth_hdr] = headers[proxy_auth_hdr]<br/>                # Proxy-Authorization should not be sent to origin<br/>                # server.<br/>                del headers[proxy_auth_hdr]<br/>            h.set_tunnel(req._tunnel_host, headers=tunnel_headers)<br/>    <br/>        try:<br/>            try:<br/>                h.request(req.get_method(), req.selector, req.data, headers,<br/>&gt;                         encode_chunked=req.has_header(&#x27;Transfer-encoding&#x27;))<br/><br/>C:\Python36\lib\urllib\request.py:1318: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _<br/><br/>self = &lt;http.client.HTTPConnection object at 0x0000020820DD0CC0&gt;<br/>method = &#x27;POST&#x27;, url = &#x27;/wd/hub/session&#x27;<br/>body = b&#x27;{&quot;capabilities&quot;: {&quot;firstMatch&quot;: [], &quot;alwaysMatch&quot;: {}, &quot;platformName&quot;: &quot;Android&quot;, &quot;platformVersion&quot;: &quot;4.3&quot;, &quot;deviceN...&quot;SM-N7508V&quot;, &quot;app&quot;: &quot;D:\\\\Touch\\\\touch_git\\\\ui_auto_test/src/common/app-dev-release_70299.apk&quot;, &quot;noReset&quot;: true}}&#x27;<br/>headers = {&#x27;Accept&#x27;: &#x27;application/json&#x27;, &#x27;Connection&#x27;: &#x27;close&#x27;, &#x27;Content-Length&#x27;: &#x27;438&#x27;, &#x27;Content-Type&#x27;: &#x27;application/json;charset=UTF-8&#x27;, ...}<br/><br/>    def request(self, method, url, body=None, headers={}, *,<br/>                encode_chunked=False):<br/>        &quot;&quot;&quot;Send a complete request to the server.&quot;&quot;&quot;<br/>&gt;       self._send_request(method, url, body, headers, encode_chunked)<br/><br/>C:\Python36\lib\http\client.py:1239: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _<br/><br/>self = &lt;http.client.HTTPConnection object at 0x0000020820DD0CC0&gt;<br/>method = &#x27;POST&#x27;, url = &#x27;/wd/hub/session&#x27;<br/>body = b&#x27;{&quot;capabilities&quot;: {&quot;firstMatch&quot;: [], &quot;alwaysMatch&quot;: {}, &quot;platformName&quot;: &quot;Android&quot;, &quot;platformVersion&quot;: &quot;4.3&quot;, &quot;deviceN...&quot;SM-N7508V&quot;, &quot;app&quot;: &quot;D:\\\\Touch\\\\touch_git\\\\ui_auto_test/src/common/app-dev-release_70299.apk&quot;, &quot;noReset&quot;: true}}&#x27;<br/>headers = {&#x27;Accept&#x27;: &#x27;application/json&#x27;, &#x27;Connection&#x27;: &#x27;close&#x27;, &#x27;Content-Length&#x27;: &#x27;438&#x27;, &#x27;Content-Type&#x27;: &#x27;application/json;charset=UTF-8&#x27;, ...}<br/>encode_chunked = False<br/><br/>    def _send_request(self, method, url, body, headers, encode_chunked):<br/>        # Honor explicitly requested Host: and Accept-Encoding: headers.<br/>        header_names = frozenset(k.lower() for k in headers)<br/>        skips = {}<br/>        if &#x27;host&#x27; in header_names:<br/>            skips[&#x27;skip_host&#x27;] = 1<br/>        if &#x27;accept-encoding&#x27; in header_names:<br/>            skips[&#x27;skip_accept_encoding&#x27;] = 1<br/>    <br/>        self.putrequest(method, url, **skips)<br/>    <br/>        # chunked encoding will happen if HTTP/1.1 is used and either<br/>        # the caller passes encode_chunked=True or the following<br/>        # conditions hold:<br/>        # 1. content-length has not been explicitly set<br/>        # 2. the body is a file or iterable, but not a str or bytes-like<br/>        # 3. Transfer-Encoding has NOT been explicitly set by the caller<br/>    <br/>        if &#x27;content-length&#x27; not in header_names:<br/>            # only chunk body if not explicitly set for backwards<br/>            # compatibility, assuming the client code is already handling the<br/>            # chunking<br/>            if &#x27;transfer-encoding&#x27; not in header_names:<br/>                # if content-length cannot be automatically determined, fall<br/>                # back to chunked encoding<br/>                encode_chunked = False<br/>                content_length = self._get_content_length(body, method)<br/>                if content_length is None:<br/>                    if body is not None:<br/>                        if self.debuglevel &gt; 0:<br/>                            print(&#x27;Unable to determine size of %r&#x27; % body)<br/>                        encode_chunked = True<br/>                        self.putheader(&#x27;Transfer-Encoding&#x27;, &#x27;chunked&#x27;)<br/>                else:<br/>                    self.putheader(&#x27;Content-Length&#x27;, str(content_length))<br/>        else:<br/>            encode_chunked = False<br/>    <br/>        for hdr, value in headers.items():<br/>            self.putheader(hdr, value)<br/>        if isinstance(body, str):<br/>            # RFC 2616 Section 3.7.1 says that text default has a<br/>            # default charset of iso-8859-1.<br/>            body = _encode(body, &#x27;body&#x27;)<br/>&gt;       self.endheaders(body, encode_chunked=encode_chunked)<br/><br/>C:\Python36\lib\http\client.py:1285: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _<br/><br/>self = &lt;http.client.HTTPConnection object at 0x0000020820DD0CC0&gt;<br/>message_body = b&#x27;{&quot;capabilities&quot;: {&quot;firstMatch&quot;: [], &quot;alwaysMatch&quot;: {}, &quot;platformName&quot;: &quot;Android&quot;, &quot;platformVersion&quot;: &quot;4.3&quot;, &quot;deviceN...&quot;SM-N7508V&quot;, &quot;app&quot;: &quot;D:\\\\Touch\\\\touch_git\\\\ui_auto_test/src/common/app-dev-release_70299.apk&quot;, &quot;noReset&quot;: true}}&#x27;<br/><br/>    def endheaders(self, message_body=None, *, encode_chunked=False):<br/>        &quot;&quot;&quot;Indicate that the last header line has been sent to the server.<br/>    <br/>            This method sends the request to the server.  The optional message_body<br/>            argument can be used to pass a message body associated with the<br/>            request.<br/>            &quot;&quot;&quot;<br/>        if self.__state == _CS_REQ_STARTED:<br/>            self.__state = _CS_REQ_SENT<br/>        else:<br/>            raise CannotSendHeader()<br/>&gt;       self._send_output(message_body, encode_chunked=encode_chunked)<br/><br/>C:\Python36\lib\http\client.py:1234: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _<br/><br/>self = &lt;http.client.HTTPConnection object at 0x0000020820DD0CC0&gt;<br/>message_body = b&#x27;{&quot;capabilities&quot;: {&quot;firstMatch&quot;: [], &quot;alwaysMatch&quot;: {}, &quot;platformName&quot;: &quot;Android&quot;, &quot;platformVersion&quot;: &quot;4.3&quot;, &quot;deviceN...&quot;SM-N7508V&quot;, &quot;app&quot;: &quot;D:\\\\Touch\\\\touch_git\\\\ui_auto_test/src/common/app-dev-release_70299.apk&quot;, &quot;noReset&quot;: true}}&#x27;<br/>encode_chunked = False<br/><br/>    def _send_output(self, message_body=None, encode_chunked=False):<br/>        &quot;&quot;&quot;Send the currently buffered request and clear the buffer.<br/>    <br/>            Appends an extra \\r\\n to the buffer.<br/>            A message_body may be specified, to be appended to the request.<br/>            &quot;&quot;&quot;<br/>        self._buffer.extend((b&quot;&quot;, b&quot;&quot;))<br/>        msg = b&quot;\r\n&quot;.join(self._buffer)<br/>        del self._buffer[:]<br/>&gt;       self.send(msg)<br/><br/>C:\Python36\lib\http\client.py:1026: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _<br/><br/>self = &lt;http.client.HTTPConnection object at 0x0000020820DD0CC0&gt;<br/>data = b&#x27;POST /wd/hub/session HTTP/1.1\r\nAccept-Encoding: identity\r\nContent-Type: application/json;charset=UTF-8\r\nConten...: 438\r\nHost: localhost:4723\r\nUser-Agent: Python http auth\r\nAccept: application/json\r\nConnection: close\r\n\r\n&#x27;<br/><br/>    def send(self, data):<br/>        &quot;&quot;&quot;Send `data&#x27; to the server.<br/>            ``data`` can be a string object, a bytes object, an array object, a<br/>            file-like object that supports a .read() method, or an iterable object.<br/>            &quot;&quot;&quot;<br/>    <br/>        if self.sock is None:<br/>            if self.auto_open:<br/>&gt;               self.connect()<br/><br/>C:\Python36\lib\http\client.py:964: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _<br/><br/>self = &lt;http.client.HTTPConnection object at 0x0000020820DD0CC0&gt;<br/><br/>    def connect(self):<br/>        &quot;&quot;&quot;Connect to the host and port specified in __init__.&quot;&quot;&quot;<br/>        self.sock = self._create_connection(<br/>&gt;           (self.host,self.port), self.timeout, self.source_address)<br/><br/>C:\Python36\lib\http\client.py:936: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _<br/><br/>address = (&#x27;localhost&#x27;, 4723), timeout = &lt;object object at 0x000002081EA39430&gt;<br/>source_address = None<br/><br/>    def create_connection(address, timeout=_GLOBAL_DEFAULT_TIMEOUT,<br/>                          source_address=None):<br/>        &quot;&quot;&quot;Connect to *address* and return the socket object.<br/>    <br/>        Convenience function.  Connect to *address* (a 2-tuple ``(host,<br/>        port)``) and return the socket object.  Passing the optional<br/>        *timeout* parameter will set the timeout on the socket instance<br/>        before attempting to connect.  If no *timeout* is supplied, the<br/>        global default timeout setting returned by :func:`getdefaulttimeout`<br/>        is used.  If *source_address* is set it must be a tuple of (host, port)<br/>        for the socket to bind as a source address before making the connection.<br/>        A host of &#x27;&#x27; or port 0 tells the OS to use the default.<br/>        &quot;&quot;&quot;<br/>    <br/>        host, port = address<br/>        err = None<br/>        for res in getaddrinfo(host, port, 0, SOCK_STREAM):<br/>            af, socktype, proto, canonname, sa = res<br/>            sock = None<br/>            try:<br/>                sock = socket(af, socktype, proto)<br/>                if timeout is not _GLOBAL_DEFAULT_TIMEOUT:<br/>                    sock.settimeout(timeout)<br/>                if source_address:<br/>                    sock.bind(source_address)<br/>                sock.connect(sa)<br/>                return sock<br/>    <br/>            except error as _:<br/>                err = _<br/>                if sock is not None:<br/>                    sock.close()<br/>    <br/>        if err is not None:<br/>&gt;           raise err<br/><br/>C:\Python36\lib\socket.py:722: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _<br/><br/>address = (&#x27;localhost&#x27;, 4723), timeout = &lt;object object at 0x000002081EA39430&gt;<br/>source_address = None<br/><br/>    def create_connection(address, timeout=_GLOBAL_DEFAULT_TIMEOUT,<br/>                          source_address=None):<br/>        &quot;&quot;&quot;Connect to *address* and return the socket object.<br/>    <br/>        Convenience function.  Connect to *address* (a 2-tuple ``(host,<br/>        port)``) and return the socket object.  Passing the optional<br/>        *timeout* parameter will set the timeout on the socket instance<br/>        before attempting to connect.  If no *timeout* is supplied, the<br/>        global default timeout setting returned by :func:`getdefaulttimeout`<br/>        is used.  If *source_address* is set it must be a tuple of (host, port)<br/>        for the socket to bind as a source address before making the connection.<br/>        A host of &#x27;&#x27; or port 0 tells the OS to use the default.<br/>        &quot;&quot;&quot;<br/>    <br/>        host, port = address<br/>        err = None<br/>        for res in getaddrinfo(host, port, 0, SOCK_STREAM):<br/>            af, socktype, proto, canonname, sa = res<br/>            sock = None<br/>            try:<br/>                sock = socket(af, socktype, proto)<br/>                if timeout is not _GLOBAL_DEFAULT_TIMEOUT:<br/>                    sock.settimeout(timeout)<br/>                if source_address:<br/>                    sock.bind(source_address)<br/>&gt;               sock.connect(sa)<br/><span class="error">E               ConnectionRefusedError: [WinError 10061] 由于目标计算机积极拒绝，无法连接。</span><br/><br/>C:\Python36\lib\socket.py:713: ConnectionRefusedError<br/><br/>During handling of the above exception, another exception occurred:<br/><br/>    @pytest.fixture(scope=&quot;module&quot;)<br/>    def setup_module():<br/>&gt;       helper.initial_appium()<br/><br/>test_model.py:17: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _<br/>..\src\helper.py:48: in initial_appium<br/>    help_appium = webdriver.Remote(command_executor, desired_caps)<br/>C:\Python36\lib\site-packages\appium\webdriver\webdriver.py:36: in __init__<br/>    super(WebDriver, self).__init__(command_executor, desired_capabilities, browser_profile, proxy, keep_alive)<br/>C:\Python36\lib\site-packages\selenium\webdriver\remote\webdriver.py:98: in __init__<br/>    self.start_session(desired_capabilities, browser_profile)<br/>C:\Python36\lib\site-packages\selenium\webdriver\remote\webdriver.py:185: in start_session<br/>    response = self.execute(Command.NEW_SESSION, parameters)<br/>C:\Python36\lib\site-packages\selenium\webdriver\remote\webdriver.py:247: in execute<br/>    response = self.command_executor.execute(driver_command, params)<br/>C:\Python36\lib\site-packages\selenium\webdriver\remote\remote_connection.py:464: in execute<br/>    return self._request(command_info[0], url, body=data)<br/>C:\Python36\lib\site-packages\selenium\webdriver\remote\remote_connection.py:525: in _request<br/>    resp = opener.open(request, timeout=self._timeout)<br/>C:\Python36\lib\urllib\request.py:526: in open<br/>    response = self._open(req, data)<br/>C:\Python36\lib\urllib\request.py:544: in _open<br/>    &#x27;_open&#x27;, req)<br/>C:\Python36\lib\urllib\request.py:504: in _call_chain<br/>    result = func(*args)<br/>C:\Python36\lib\urllib\request.py:1346: in http_open<br/>    return self.do_open(http.client.HTTPConnection, req)<br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _<br/><br/>self = &lt;urllib.request.HTTPHandler object at 0x0000020820DE8438&gt;<br/>http_class = &lt;class &#x27;http.client.HTTPConnection&#x27;&gt;<br/>req = &lt;selenium.webdriver.remote.remote_connection.Request object at 0x0000020820DE82E8&gt;<br/>http_conn_args = {}, host = &#x27;localhost:4723&#x27;<br/>h = &lt;http.client.HTTPConnection object at 0x0000020820DD0CC0&gt;<br/><br/>    def do_open(self, http_class, req, **http_conn_args):<br/>        &quot;&quot;&quot;Return an HTTPResponse object for the request, using http_class.<br/>    <br/>            http_class must implement the HTTPConnection API from http.client.<br/>            &quot;&quot;&quot;<br/>        host = req.host<br/>        if not host:<br/>            raise URLError(&#x27;no host given&#x27;)<br/>    <br/>        # will parse host:port<br/>        h = http_class(host, timeout=req.timeout, **http_conn_args)<br/>        h.set_debuglevel(self._debuglevel)<br/>    <br/>        headers = dict(req.unredirected_hdrs)<br/>        headers.update(dict((k, v) for k, v in req.headers.items()<br/>                            if k not in headers))<br/>    <br/>        # TODO(jhylton): Should this be redesigned to handle<br/>        # persistent connections?<br/>    <br/>        # We want to make an HTTP/1.1 request, but the addinfourl<br/>        # class isn&#x27;t prepared to deal with a persistent connection.<br/>        # It will try to read all remaining data from the socket,<br/>        # which will block while the server waits for the next request.<br/>        # So make sure the connection gets closed after the (only)<br/>        # request.<br/>        headers[&quot;Connection&quot;] = &quot;close&quot;<br/>        headers = dict((name.title(), val) for name, val in headers.items())<br/>    <br/>        if req._tunnel_host:<br/>            tunnel_headers = {}<br/>            proxy_auth_hdr = &quot;Proxy-Authorization&quot;<br/>            if proxy_auth_hdr in headers:<br/>                tunnel_headers[proxy_auth_hdr] = headers[proxy_auth_hdr]<br/>                # Proxy-Authorization should not be sent to origin<br/>                # server.<br/>                del headers[proxy_auth_hdr]<br/>            h.set_tunnel(req._tunnel_host, headers=tunnel_headers)<br/>    <br/>        try:<br/>            try:<br/>                h.request(req.get_method(), req.selector, req.data, headers,<br/>                          encode_chunked=req.has_header(&#x27;Transfer-encoding&#x27;))<br/>            except OSError as err: # timeout error<br/>&gt;               raise URLError(err)<br/><span class="error">E               urllib.error.URLError: &lt;urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。&gt;</span><br/><br/>C:\Python36\lib\urllib\request.py:1320: URLError<br/></div></td></tr></tbody></table></body></html>

@@ -1,0 +1,21 @@
+LOGGING:
+    max_bytes_each: 5120000
+    backup_count: 10
+    fmt: "|(levelname)s: |(asctime)s"
+    logger_name: test_logger
+    log_level_in_console: 10
+    log_level_in_logfile: 20
+    console_log_on: 1
+    logfile_log_on: 1
+    flag:
+    compare_flag: 0
+
+
+LOG_DETAIL:
+    level_name: "|(levelname)s"
+    asc_time: "|(asctime)s"
+    project_name: ui_auto_test
+    file_name: "|(filename)s"
+    line_no: "|(lineno)d"
+    message: "|(message)s"
+

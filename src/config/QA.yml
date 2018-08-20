@@ -1,0 +1,42 @@
+account_info:
+     phone: 15659267036
+     password: 123456
+     name: '闹p丫你'
+
+flag:
+    compare_flag: 0
+
+soa_config:
+    env: 0
+    soa_client:
+        "tqmq": "http://tqmq.test.k8s.taqu.cn/v2/Soa/"
+        "bbs": "http://bbs.test.k8s.taqu.cn/v5/Soa/"
+        "ui_auto": "http://j9.test.k8s.taqu.cn/tq-qtp/api"
+    soa_system:
+        "tqmq": "php"
+        "bbs": "php"
+        "ui_auto": "java"
+
+desired_caps:
+    platform_name: "Android"
+    app_package: "com.xingjiabi.shengsheng"
+    app_activity: "com.xingjiabi.shengsheng.app.SplashActivity"
+    noreset: True
+    automationName: "uiautomator2"
+
+emulator:
+    device_name: 127.0.0.1:62025
+    device_version: 5.1.1
+
+http:
+    url: "http://j9.test.k8s.taqu.cn/"
+
+linux:
+    host_name: 10.10.60.228
+    username: root
+    password: HAibao123!@
+    port: 22
+    file_path: /data/html/qtp/
+
+apk:
+   url: "http://app.internal.taqu.cn/android%E8%BF%AD%E4%BB%A3%E5%AE%89%E8%A3%85%E5%8C%85/%E7%9B%B4%E6%92%AD/05week_baobao/"
