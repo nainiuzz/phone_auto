@@ -365,7 +365,7 @@ class XmlAction(object):
     def assert_select_detail(self, key, value):
         if 'equal' in key:
             value()
-        elif ('text' or 'toast') in key:
+        elif 'text'in key or 'toast' in key:
             value(self.dispose_cal(self.for_param()['text']))
         else:
             location = self.dispose_location()
