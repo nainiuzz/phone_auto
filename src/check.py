@@ -158,6 +158,26 @@ def exist_toast(text, timeout=30, poll_frequency=0.5):
         return False
 
 
+def no_exist_toast(text, timeout=30, poll_frequency=0.5):
+    """
+    判断浮窗是否不存在
+    Args:
+        text: 页面上看到的文本内容
+        timeout: 最大超时时间，默认10s
+        poll_frequency: 间隔查询时间，默认0.5s查询一次
+
+    Returns:
+        True or False
+
+    """
+    try:
+        toast_loc = ("xpath", ".//*[contains(@text,'%s')]" % text)
+        WebDriverWait(helper.get_appium(), timeout, poll_frequency).until_not(EC.presence_of_element_located(toast_loc))
+        return True
+    except:
+        return False
+
+
 def assert_exist_toast(text):
     """
     判断浮窗是否存在
@@ -179,7 +199,7 @@ def assert_not_exist_toast(text):
     Returns:
         断言失败异常
     """
-    if exist_toast(text):
+    if not no_exist_toast(text):
         oper.log(text + "该浮窗仍然存在", 2)
         raise TouchException(text + "该浮窗仍然存在")
 

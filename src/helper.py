@@ -20,12 +20,13 @@ srcPath = file_path[0:index] + projectName + "/src"
 file_path = file_path[0:index] + projectName + "/src/config/" + configFileName
 
 
-def initial_appium(iphone=0, desired_caps=None):
+def initial_appium(iphone=0, desired_caps=None, port=None):
     """
     初始化移动端
     Args:
         iphone: 0代表真机，1代表模拟器
         desired_caps: 传入驱动的数据
+        port: 端口号
     Returns:
         driver
 
@@ -33,7 +34,10 @@ def initial_appium(iphone=0, desired_caps=None):
     global help_appium
     desired_cap = {}
     # 启动appium之前判断进程是否结束
-    command_executor = "http://localhost:4723/wd/hub"
+    if port:
+        command_executor = "http://localhost:%s/wd/hub" % str(port)
+    else:
+        command_executor = "http://localhost:4723/wd/hub"
     if iphone == 0:
         if desired_caps:
             desired_cap = desired_caps
@@ -63,6 +67,8 @@ def initial_appium(iphone=0, desired_caps=None):
         # # 将键盘隐藏起来
         desired_cap['resetKeyboard'] = False
         desired_cap['automationName'] = 'Uiautomator2'
+        # 意思就是Appium 自动决定获取安装app需要的权限 默认是false
+        desired_cap['autoGrantPermissions'] = True
     help_appium = webdriver.Remote(command_executor, desired_cap)
 
     return help_appium
@@ -104,7 +110,7 @@ def get_pytest_param(file_name, option=None):
     return file_name
 
 
-def read_config_item(section, option, f=None):
+def read_config_item(section, option=None, f=None):
     """
     获取配置文件中某项配置
     Args:
@@ -120,7 +126,10 @@ def read_config_item(section, option, f=None):
         f = file_path
         if 'yml' in f:
             yml_detail = read_yml_file(f)
-            value = yml_detail.get(section)[option]
+            if option:
+                value = yml_detail.get(section)[option]
+            else:
+                value = yml_detail.get(section)
         else:
             cp.read(f, encoding="utf-8-sig")
             value = str(cp.get(section, option))
@@ -128,7 +137,11 @@ def read_config_item(section, option, f=None):
     else:
         if 'yml' in f:
             yml_detail = read_yml_file(f)
-            value = yml_detail.get(section)[option]
+            if option:
+                value = yml_detail.get(section)[option]
+            else:
+                value = yml_detail.get(section)
+            # value = yml_detail.get(section)[option]
         else:
             # f = file_path[0:index] + projectName + "/src/config/" + f
             cp.read(f, encoding="utf-8-sig")
@@ -296,4 +309,6 @@ def alter_current_time(date_type='%Y-%m-%d %H:%M:%S', days=0, hours=0, minutes=0
 
 
 if __name__ == '__main__':
-    alter_current_time()
+    pool = read_config_item("phone_pool")
+    print(pool)
+    # alter_current_time()

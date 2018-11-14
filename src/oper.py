@@ -6,7 +6,6 @@ from appium.webdriver.common.touch_action import TouchAction
 from appium.webdriver.common.multi_action import MultiAction
 from logger import logger
 from selenium.common.exceptions import WebDriverException
-import requests
 import check
 import time
 import re
@@ -173,11 +172,15 @@ def action_tap(element=None, x=None, y=None, count=1):
         点击动作
     """
     if x:
-        x = float(x)
-        y = float(y)
-        window_size = get_size()
-        x1 = int(window_size[0] * x)  # x坐标
-        y1 = int(window_size[1] * y)  # 起始y坐标
+        if float(x) <= 1.0:
+            x = float(x)
+            y = float(y)
+            window_size = get_size()
+            x1 = int(window_size[0] * x)  # x坐标
+            y1 = int(window_size[1] * y)  # 起始y坐标
+        else:
+            x1 = int(x)
+            y1 = int(y)
         return TouchAction(helper.get_appium()).tap(x=x1, y=y1, count=count).release().perform()
     elif element:
         elements = find.element(element)
@@ -199,11 +202,15 @@ def action_press(element=None, x=None, y=None):
         手势动作，按
     """
     if x:
-        x = float(x)
-        y = float(y)
-        window_size = get_size()
-        x1 = int(window_size[0] * x)  # x坐标
-        y1 = int(window_size[1] * y)  # 起始y坐标
+        if float(x) <= 1.0:
+            x = float(x)
+            y = float(y)
+            window_size = get_size()
+            x1 = int(window_size[0] * x)  # x坐标
+            y1 = int(window_size[1] * y)  # 起始y坐标
+        else:
+            x1 = int(x)
+            y1 = int(y)
         return TouchAction(helper.get_appium()).press(x=x1, y=y1).release().perform()
     elif element:
         elements = find.element(element)
@@ -231,11 +238,15 @@ def action_move_to(element=None, x=None, y=None):
 
     """
     if x:
-        x = float(x)
-        y = float(y)
-        window_size = get_size()
-        x1 = int(window_size[0] * x)  # x坐标
-        y1 = int(window_size[1] * y)  # 起始y坐标
+        if float(x) <= 1.0:
+            x = float(x)
+            y = float(y)
+            window_size = get_size()
+            x1 = int(window_size[0] * x)  # x坐标
+            y1 = int(window_size[1] * y)  # 起始y坐标
+        else:
+            x1 = int(x)
+            y1 = int(y)
         return TouchAction(helper.get_appium()).move_to(x=x1, y=y1).release().perform()
     elif element:
         elements = find.element(element)
@@ -258,11 +269,15 @@ def action_long_press(element=None, x=None, y=None, duration=1000):
         手势动作，长按
     """
     if x:
-        x = float(x)
-        y = float(y)
-        window_size = get_size()
-        x1 = int(window_size[0] * x)  # x坐标
-        y1 = int(window_size[1] * y)  # 起始y坐标
+        if float(x) < 1.0:
+            x = float(x)
+            y = float(y)
+            window_size = get_size()
+            x1 = int(window_size[0] * x)  # x坐标
+            y1 = int(window_size[1] * y)  # 起始y坐标
+        else:
+            x1 = int(x)
+            y1 = int(y)
         return TouchAction(helper.get_appium()).long_press(x=x1, y=y1, duration=duration).release().perform()
     elif element:
         elements = find.element(element)
@@ -297,15 +312,21 @@ def action_slither(x1=None, y1=None, x2=None, y2=None, el1=None, el2=None):
       手势动作，滑动
     """
     if x1:
-        x1 = float(x1)
-        y1 = float(y1)
-        x2 = float(x2)
-        y2 = float(y2)
-        window_size = get_size()
-        x_1 = int(window_size[0] * x1)  # x1坐标
-        y_1 = int(window_size[1] * y1)  # 起始y1坐标
-        x_2 = int(window_size[0] * x2)  # x2坐标
-        y_2 = int(window_size[1] * y2)  # 起始y2坐标
+        if float(x1) <= 1.0:
+            x1 = float(x1)
+            y1 = float(y1)
+            x2 = float(x2)
+            y2 = float(y2)
+            window_size = get_size()
+            x_1 = int(window_size[0] * x1)  # x1坐标
+            y_1 = int(window_size[1] * y1)  # 起始y1坐标
+            x_2 = int(window_size[0] * x2)  # x2坐标
+            y_2 = int(window_size[1] * y2)  # 起始y2坐标
+        else:
+            x_1 = int(x1)
+            y_1 = int(y1)
+            x_2 = int(x2)
+            y_2 = int(y2)
         return helper.get_appium().swipe(x_1, y_1, x_2, y_2)
         # return TouchAction(helper.get_appium()).press(x=x_1, y=y_1).move_to(x=x_2, y=y_2).release().perform()
     elif el1:
@@ -332,15 +353,21 @@ def action_multi(x1=None, y1=None, x2=None, y2=None, el1=None, el2=None):
       多点触摸
     """
     if x1:
-        x1 = float(x1)
-        y1 = float(y1)
-        x2 = float(x2)
-        y2 = float(y2)
-        window_size = get_size()
-        x_1 = int(window_size[0] * x1)  # x1坐标
-        y_1 = int(window_size[1] * y1)  # 起始y1坐标
-        x_2 = int(window_size[0] * x2)  # x2坐标
-        y_2 = int(window_size[1] * y2)  # 起始y2坐标
+        if float(x1) <= 1.0:
+            x1 = float(x1)
+            y1 = float(y1)
+            x2 = float(x2)
+            y2 = float(y2)
+            window_size = get_size()
+            x_1 = int(window_size[0] * x1)  # x1坐标
+            y_1 = int(window_size[1] * y1)  # 起始y1坐标
+            x_2 = int(window_size[0] * x2)  # x2坐标
+            y_2 = int(window_size[1] * y2)  # 起始y2坐标
+        else:
+            x_1 = int(x1)  # x1坐标
+            y_1 = int(y1)  # 起始y1坐标
+            x_2 = int(x2)  # x2坐标
+            y_2 = int(y2)  # 起始y2坐标
         action1 = TouchAction(helper.get_appium()).press(x=x_1, y=y_1)
         action2 = TouchAction(helper.get_appium()).press(x=x_2, y=y_2)
         ma = MultiAction(helper.get_appium())
@@ -697,25 +724,6 @@ def get_page_resource():
     return page_source
 
 
-def download_apk(f):
-    """
-    下载apk
-    Args:
-        f:apk名称
-    Returns:
-
-    """
-    url = helper.read_config_item("apk", "url") + f
-    filename = helper.srcPath + '/common/' + f
-    file = requests.get(url, timeout=10)
-    with open(filename, 'wb') as apk:
-        apk.write(file.content)
-        log("下载" + f + "成功")
-    # 返回内容
-    dicts = [url, 'Succeed', filename]
-    return dicts
-
-
 class CalStyle(object):
 
     def add(self, value_1, value_2):
@@ -871,6 +879,18 @@ class CalStyle(object):
         if not values:
             values = "0"
         return values
+
+
+def remove_app(app_id=helper.read_config_item("desired_caps", "app_package")):
+    """
+    根据app_id卸载apk
+    """
+    if helper.get_appium().is_app_installed(app_id):
+        try:
+            helper.get_appium().remove_app(app_id)
+            log("卸载成功！")
+        except Exception as e:
+            log("卸载失败！" + str(e), 2)
 
 
 if __name__ == '__main__':

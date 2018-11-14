@@ -113,10 +113,28 @@ def back_mq(result_json):
         oper.log("回调队列失败，异常：" + error, 2)
 
 
+# 请求账号池
+def get_pool():
+    soa_ui = SoaClient.get_soa('ui_auto', 'caseUIAccountPool')
+    try:
+        resp, error = soa_ui.getList()
+        if error:
+            oper.log("请求账号池失败，异常：" + error, 2)
+        if not resp:
+            return {}
+        else:
+            return resp
+    except Exception as e:
+        oper.log("请求账号池失败，异常：" + str(e), 2)
+        return {}
+
+
 if __name__ == '__main__':
+    get_pool()
+    print(1)
     # res = get_mq()
     # del_mq(res)
-    result = {'id': '5304', 'case_info': [
-        "{'file_path': 'caseUI/test/11.xml', 'test_result_info': URLError(ConnectionRefusedError(10061, "
-        "'由于目标计算机积极拒绝，无法连接。', None, 10061, None),), 'status': '0'}"]}
-    back_mq(result)
+    # result = {'id': '5304', 'case_info': [
+    #     "{'file_path': 'caseUI/test/11.xml', 'test_result_info': URLError(ConnectionRefusedError(10061, "
+    #     "'由于目标计算机积极拒绝，无法连接。', None, 10061, None),), 'status': '0'}"]}
+    # back_mq(result)

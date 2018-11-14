@@ -9,6 +9,12 @@ import json
 import paramiko
 import xml.etree.ElementTree as ET
 import requests
+import read_files
+import send_msg
+import SoaClient
+import clean
+from multiprocessing import Lock
+import login
 
 
 class SaveResult(object):
@@ -36,7 +42,7 @@ class SaveResult(object):
 
 
 class RunXml(object):
-    def __init__(self, xml_file_path, write_result, write_status, save_param, log_message=None, flag=None):
+    def __init__(self, xml_file_path, write_result, write_status, save_param, log_message=None, flag=None, port=None):
         """
          解析xml文件动作,触发对应操作
         Args:
@@ -55,6 +61,7 @@ class RunXml(object):
         self.save_value = save_param.save_value
         self.write_result = write_result
         self.write_status = write_status
+        self.port = port
 
     def run(self, result_message=None):
         """
@@ -67,7 +74,19 @@ class RunXml(object):
                 else:
                     types = value
                 if types == "1":
-                    self.run_case(result_message)
+                    # 加入判定登录时选择对应账号登录
+                    if "Login/Login" in self.xml_file_path:
+                        try:
+                            login.login_read_xml(self.xml_file_path, self.port)
+                            self.write_result("端口：%s 登录成功！" % self.port)
+                            self.write_status("1")
+                            oper.log("端口：%s 登录成功！" % self.port)
+                        except Exception as e:
+                            self.write_result("端口：%s 登录失败！原因为：%s" % (self.port, str(e)))
+                            self.write_status("1")
+                            oper.log("端口：%s 登录失败！原因为：%s" % (self.port, str(e)), 2)
+                    else:
+                        self.run_case(result_message)
                 elif types == "3":
                     self.write_result("测试用例为后置用例无需执行")
                     self.write_status("1")
@@ -104,7 +123,7 @@ class RunXml(object):
                              formats=self.log_message)
                     try:
                         run_init = RunXml(before_value["beforecase-path"], self.write_result, self.write_status,
-                                          self.save_param, log_message=self.log_message, flag=1)
+                                          self.save_param, log_message=self.log_message, flag=1, port=self.port)
                         run_init.run("执行测试前置用例【" + str(before_value["beforecase-path"]) + "】")
                     except Exception as e:
                         oper.log("执行测试前置用例【" + str(before_value["beforecase-path"]) + "】失败，原因是：" + str(
@@ -167,7 +186,7 @@ class RunXml(object):
                     oper.log("执行后置用例【" + str(after_value["aftercase-path"]) + "】", formats=self.log_message)
                     try:
                         run_init = RunXml(after_value["aftercase-path"], self.write_result, self.write_status,
-                                          self.save_param, log_message=self.log_message, flag=1)
+                                          self.save_param, log_message=self.log_message, flag=1, port=self.port)
                         run_init.run("执行后置用例【" + str(after_value["aftercase-path"]) + "】")
                     except Exception as e:
                         oper.log("执行后置用例【" + str(after_value["aftercase-path"]) + "】失败，原因是：" + str(
@@ -345,27 +364,29 @@ class XmlAction(object):
             oper.log("传入操作oper_action的值错误无法匹配，错误值为【" + str(self.oper_detail['oper_action']) + "】", 2)
 
     # 处理值是否为变量，若为变量把存储在变量map中的数据赋值。
-    def dispose_cal(self, value):
+    def dispose_cal(self, values):
         expect_value = ""
-        if "{{" in value:
-            expect_sign = value.replace("{", "").replace("}", "")
+        if ("{{" and "}}") in values:
+            expect_sign = values.split("{{")[1].split("}}")[0]
             flag = 0
             for key, value in self.save_param.items():
                 if expect_sign in key:
                     flag = 1
-                    expect_value = self.save_param.get(expect_sign)
+                    # 获取到变量值
+                    sign_value = self.save_param.get(expect_sign)
+                    expect_value = str(values).replace(expect_sign, sign_value).replace("{", "").replace("}", "")
                     break
             if flag == 0:
                 oper.log("找不到变量%s的值" % expect_sign, 2)
                 raise check.TouchException("找不到变量%s的值" % expect_sign)
         else:
-            expect_value = value
+            expect_value = values
         return expect_value
 
     def assert_select_detail(self, key, value):
         if 'equal' in key:
             value()
-        elif 'text'in key or 'toast' in key:
+        elif 'text' in key or 'toast' in key:
             value(self.dispose_cal(self.for_param()['text']))
         else:
             location = self.dispose_location()
@@ -383,26 +404,34 @@ class XmlAction(object):
     def dispose_equal(self):
         expect_value = ""
         actual_value = ""
-        if "{{" in self.for_param()['expect_value']:
-            expect_sign = self.for_param()['expect_value'].replace("{", "").replace("}", "")
+        if ("{{" and "}}") in self.for_param()['expect_value']:
+            expect_sign = str(self.for_param()['expect_value']).split("{{")[1].split("}}")[0]
             flag = 0
             for key, value in self.save_param.items():
                 if expect_sign in key:
                     flag = 1
-                    expect_value = self.save_param.get(expect_sign)
+                    # 获取到变量值
+                    sign_value = self.save_param.get(expect_sign)
+                    expect_value = str(self.for_param()['expect_value']) \
+                        .replace(expect_sign, sign_value) \
+                        .replace("{", "").replace("}", "")
                     break
             if flag == 0:
                 oper.log("找不到预期变量%s的值" % expect_sign, 2)
                 raise check.TouchException("找不到预期变量%s的值" % expect_sign)
         else:
             expect_value = self.for_param()['expect_value']
-        if "{{" in self.for_param()['actual_value']:
-            actual_sign = self.for_param()['actual_value'].replace("{", "").replace("}", "")
+        if ("{{" and "}}") in self.for_param()['actual_value']:
+            actual_sign = self.for_param()['actual_value'].split("{{")[1].split("}}")[0]
             flag = 0
             for key, value in self.save_param.items():
                 if actual_sign in key:
                     flag = 1
-                    actual_value = self.save_param.get(actual_sign)
+                    # 获取到变量值
+                    sign_value = self.save_param.get(actual_sign)
+                    actual_value = str(self.for_param()['actual_value']) \
+                        .replace(actual_sign, sign_value) \
+                        .replace("{", "").replace("}", "")
                     break
             if flag == 0:
                 oper.log("找不到实际变量%s的值" % actual_sign, 2)
@@ -578,28 +607,41 @@ class TaskAction(object):
                         "command2": 'adb shell ime set com.sohu.inputmethod.sogou/.SogouIME',  # 搜狗输入法
                         "command3": 'adb shell ime set com.example.android.softkeyboard/.SoftKeyboard'}  # 模拟器自带英文输入
 
-    def initial_appium(self):
-
+    def initial_appium(self, port=None, device_name=None):
         if self.base_info['device_type'] == "1":
             self.desired_caps['platformVersion'] = helper.read_config_item("emulator", "device_version")
-            self.desired_caps['deviceName'] = helper.read_config_item("emulator", "device_name")
+            if device_name:
+                self.desired_caps['deviceName'] = device_name
+            else:
+                self.desired_caps['deviceName'] = helper.read_config_item("emulator", "device_name")
+            if port:
+                # 设定并发多进程的时候端口
+                self.desired_caps['systemPort'] = 5287 + int(port)
             # 是使用unicode编码方式发送字符串
             self.desired_caps['unicodeKeyboard'] = True
             # 将键盘隐藏起来
-            self.desired_caps['resetKeyboard'] = True
+            self.desired_caps['resetKeyboard'] = False
+            # 设备为模拟器时可以这么用
+            dirs = device_name.split(":")[1]
         else:
             self.desired_caps['platformVersion'] = self.base_info['device_version']
             self.desired_caps['deviceName'] = self.base_info['device_name']
             # 是使用unicode编码方式发送字符串
             self.desired_caps['unicodeKeyboard'] = True
             # 将键盘隐藏起来
-            self.desired_caps['resetKeyboard'] = True
-        self.desired_caps['app'] = helper.srcPath + '/common/' + self.base_info['app']
-        # 先将下载apk隐藏，待后续讨论
-        # oper.download_apk(self.base_info['app'])
-        helper.initial_appium(desired_caps=self.desired_caps)
+            self.desired_caps['resetKeyboard'] = False
+            if port:
+                # 设定并发多进程的时候端口
+                self.desired_caps['systemPort'] = 5287 + int(port)
+            # 设备为真机时可以这么用
+            dirs = device_name
+        # 更新共享apk与本地一致
+        read_files.exist_apk(str(device_name) + '/' + self.base_info['app'])
+        self.desired_caps['app'] = helper.srcPath + '/common/' + str(dirs) + '/' + self.base_info['app']
+        helper.initial_appium(desired_caps=self.desired_caps, port=port)
         # 设置输入搜狗输入法
-        os.system(self.command["command2"])
+        command = "adb -s %s shell ime set com.sohu.inputmethod.sogou/.SogouIME" % device_name
+        os.system(command)
 
     def read_case_info(self):
         return self.case_info
@@ -744,8 +786,92 @@ class SaveValue(object):
         return dict_data
 
 
+def run_mq(res, port, device_name):
+    result_detail = {"id": "", "case_info": []}
+    result_detail = json.dumps(result_detail, ensure_ascii=False)
+    result_json = json.loads(result_detail, encoding="utf-8")
+    case_info = TaskAction(res).read_case_info()
+    task_info = TaskAction(res).read_base_info()
+    task_id = task_info["id"]
+    result_json["id"] = task_id
+    result_case = []
+    flag = 0
+    init_detail = ""
+    lock = Lock()
+    try:
+        lock.acquire()
+        TaskAction(res).initial_appium(port, device_name)
+        lock.release()
+        # 环境清理
+        clean.clean()
+    except Exception as e:
+        oper.log("appium启动app失败：" + str(e), 2)
+        init_detail = "appium启动app失败：" + str(e)
+        flag = 1
+    for case_id in case_info:
+        result_info = SaveResult()
+        save_param = SaveValue()
+        case_message = {}
+        case_message["file_path"] = case_id
+        if flag == 1:
+            case_message["test_result_info"] = init_detail
+            case_message["status"] = "0"
+        else:
+            try:
+                message = "%s | %s | %s | %s | " % (
+                    task_info["app"], task_info["id"], task_info["current_version"],
+                    case_id)
+                oper.log('执行测试用例【' + str(case_id) + '】', formats=message)
+                run = RunXml(case_id, result_info.write_result, result_info.write_status,
+                             save_param, message, port=port)
+                run.run()
+            except Exception as e:
+                oper.log(e, 2)
+                result_info.write_result(str(e))
+            case_message["test_result_info"] = result_info.get_result()
+            case_message["status"] = result_info.get_status()
+        case_message = json.dumps(case_message, ensure_ascii=False)
+        result_case.append(case_message)
+    try:
+        oper.remove_app()
+        helper.release_appium()
+    except Exception as e:
+        oper.log("appium关闭app失败：" + str(e), 2)
+    result_json["case_info"] = result_case
+    result_json = json.dumps(result_json, ensure_ascii=False)
+    response_json = json.loads(result_json, encoding="utf-8")
+    oper.log(response_json)
+    try:
+        send_msg.send_mail(result=response_json)
+    except Exception as e:
+        oper.log("发送邮件失败：" + str(e), 2)
+    try:
+        SoaClient.back_mq(response_json)
+    except Exception as e:
+        oper.log("返回队列信息失败：" + str(e), 2)
+    try:
+        SoaClient.del_mq(res)
+    except Exception as e:
+        oper.log("删除队列信息失败：" + str(e), 2)
+    try:
+        res_body = json.loads(res['msg_body'])
+        base_info = res_body['base_info']
+        read_files.del_apk(str(device_name) + '/' + base_info['app'])
+    except Exception as e:
+        oper.log("删除本地apk失败：" + str(e), 2)
+
+
+def test_run(port, device_name):
+    while True:
+        res = SoaClient.get_mq()
+        if res and res["msg_body"]:
+            run_mq(res, port, device_name)
+        else:
+            time.sleep(1)
+
+
 if __name__ == '__main__':
-    read_xml("caseUI/Home/CommonEntrance/Trial/List1/Buy/BuyNow.xml")
+    test_run(4723, "127.0.0.1:62025")
     # print(run_xml.__doc__)
     # read_linux("caseUI\\/test\\/11.xml")
     # run_xml("caseUI\\/test\\/XianShiQiangGou.xml")
@@ -753,6 +879,6 @@ if __name__ == '__main__':
     # values.save_value("name", "别闹")
     # value = values.get_value("name")
     # print(value)
-    values = SaveValue()
+    # values = SaveValue()
     # value = values.get_value("name")
     # print(value)

@@ -21,7 +21,7 @@ desired_caps:
     platform_name: "Android"
     app_package: "com.xingjiabi.shengsheng"
     app_activity: "com.xingjiabi.shengsheng.app.SplashActivity"
-    noreset: True
+    noreset: False
     automationName: "uiautomator2"
 
 emulator:
@@ -39,4 +39,29 @@ linux:
     file_path: /data/html/qtp/
 
 apk:
-   url: "http://app.internal.taqu.cn/android%E8%BF%AD%E4%BB%A3%E5%AE%89%E8%A3%85%E5%8C%85/%E7%9B%B4%E6%92%AD/05week_baobao/"
+   path: '//10.10.5.249/packages/android迭代安装包/Taqu-Jenkins/auto-test'
+
+send_msg:
+    sender: "137237569@qq.com"
+    password: "zubaezoxeelvbhdd"
+    receivers: ["lushan@taqu.cn"]
+
+email:
+    url: "http://j9.test.k8s.taqu.cn/tq-qtp/index"
+    host: "smtp.qq.com"
+    port: 25
+
+devices:
+  - device: 127.0.0.1:62025
+    port: 4723
+  - device: 127.0.0.1:62026
+    port: 4724
+  - device: 127.0.0.1:62027
+    port: 4725
+  - device: 127.0.0.1:62028
+    port: 4726
+
+phone_pool:
+  - [12900000001, 12900000002, 12900000003]
+  - [12900000004, 12900000005, 12900000006]
+  - [12900000007, 12900000008, 12900000009]
